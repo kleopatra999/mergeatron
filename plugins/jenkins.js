@@ -174,9 +174,16 @@ Jenkins.prototype.pullFound = function(pull) {
  * @param pull {Object}
  */
 Jenkins.prototype.checkJob = function(pull) {
-	var self = this,
+	var noun,
+		self = this,
 		job = this.findUnfinishedJob(pull),
 		project = this.findProjectByRepo(pull.repo);
+
+       if (!job || !project) {
+           noun = (!job) ? 'job' : 'project';
+           self.mergeatron.log.error('Could not find a ' + noun + ' for ' + pull.repo + ' #' + pull.number + ' on ' + self.config.host);
+           return;
+       }
 
 	this.checkBuild(project.name, function(error, response) {
 		if (error) {
