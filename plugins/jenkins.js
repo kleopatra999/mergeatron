@@ -243,6 +243,8 @@ Jenkins.prototype.triggerBuild = function(job_name, url_options, callback) {
 		};
 	}
 
+    this.mergeatron.log.debug('triggering build: ' + JSON.stringify(options));
+
 	request(options, callback);
 };
 
@@ -353,12 +355,7 @@ Jenkins.prototype.downloadArtifact = function(build, pull, artifact) {
 };
 
 exports.init = function(config, mergeatron) {
-	var jenkins = new Jenkins(config, mergeatron),
-        triggerBuildErrCb = function(error) {
-          if (error) {
-            mergeatron.log.info('Received error from Jenkins when triggering build', { job_name: job_name, url_options: url_options });
-          }
-        };
+	var jenkins = new Jenkins(config, mergeatron);
 	jenkins.setup();
 
 	mergeatron.on('pull.processed', function(pull, pull_number, sha, ssh_url, branch, updated_at) {
@@ -374,7 +371,11 @@ exports.init = function(config, mergeatron) {
 	});
 
 	mergeatron.on('build.trigger', function(job_name, url_options) {
-		jenkins.triggerBuild(job_name, url_options, triggerBuildErrCb);
+		jenkins.triggerBuild(job_name, url_options, function(error) {
+            if (error) {
+                mergeatron.log.info('Received error from Jenkins when triggering build', { job_name: job_name, url_options: url_options });
+            }
+        });
 	});
 
 	mergeatron.on('build.check', function(job_name, callback) {
@@ -386,6 +387,10 @@ exports.init = function(config, mergeatron) {
 	});
 
     mergeatron.on('events.ref_update', function(payload) {
-        jenkins.triggerBuild(jenkins.findProjectByRepo(payload.repo, 'polling_projects'), payload, triggerBuildErrCb);
+        jenkins.triggerBuild(jenkins.findProjectByRepo(payload.repo, 'polling_projects'), payload, function(err) {
+            if (err) {
+                mergeatron.log.error(err);
+            }
+        });
     });
 };

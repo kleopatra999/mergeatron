@@ -61,9 +61,15 @@ GitHubPolling.prototype.validateRef = function(payload) {
 };
 
 GitHubPolling.prototype.logPayload = function(payload) {
-    this.mergeatron.log.info('payload created: ' + JSON.stringify(payload));
-    this.mergeatron.db.insertEvent(payload);
-    this.mergeatron.emit('events.ref_update', payload);
+    var self = this;
+    this.mergeatron.log.info('logging payload: ' + JSON.stringify(payload));
+    this.mergeatron.db.insertEvent(payload, function(err, res) {
+        if (err) {
+            self.mergeatron.log.error(err);
+            process.exit(1);
+        }
+        self.mergeatron.emit('events.ref_update', payload);
+    });
 };
 
 GitHubPolling.prototype.checkEvents = function() {
