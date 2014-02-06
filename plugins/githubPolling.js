@@ -25,7 +25,7 @@ var GitHubPolling = function(config, mergeatron) {
 };
 
 GitHubPolling.prototype.validateRef = function(payload) {
-	this.mergeatron.log.info('Evaluating event #' + payload.id);
+	this.mergeatron.log.debug('Evaluating event #' + payload.id);
 
     var self = this;
     this.mergeatron.db.findEvent({ ref: payload.ref, head: payload.head, after: payload.after }, function(err, res) {
@@ -34,31 +34,34 @@ GitHubPolling.prototype.validateRef = function(payload) {
             return;
         }
 
+        self.mergeatron.log.debug('PAYLOAD BEING VALIDATED: ' + JSON.stringify(payload));
+
         // exact match for payload found
         if (res) {
-            self.mergeatron.log.debug('Payload already exists: ' + JSON.stringify(payload));
+            self.mergeatron.log.debug('Event #' + payload.id + ' already logged');
             return;
         }
 
         if (!self.config.polling_regex) {
-            self.mergeatron.log.debug('Logged payload without rules: ' + JSON.stringify(payload));
+            self.mergeatron.log.debug('Logged payload without rules: #' + payload.id);
             self.events.emit('payload_validated', payload);
             return;
         }
 
         for (var index in self.config.polling_regex) {
             if (payload.ref.match(self.config.polling_regex[index])) {
-                self.mergeatron.log.debug('Logged payload: ' + JSON.stringify(payload));
+                self.mergeatron.log.debug('Logged payload with rules: #' + payload.id);
                 self.events.emit('payload_validated', payload);
                 return;
             }
         }
 
-        self.mergeatron.log.debug('payload not validated: ' + JSON.stringify(payload));
+        self.mergeatron.log.debug('skipped payload #' + payload.id);
     });
 };
 
 GitHubPolling.prototype.logPayload = function(payload) {
+    this.mergeatron.log.info('payload created: ' + JSON.stringify(payload));
     this.mergeatron.db.insertEvent(payload);
     this.mergeatron.emit('events.ref_update', payload);
 };
