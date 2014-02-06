@@ -26,7 +26,6 @@ var GitHubPolling = function(config, mergeatron) {
 
 GitHubPolling.prototype.validateRef = function(payload) {
 	this.mergeatron.log.info('Evaluating event #' + payload.id);
-	this.mergeatron.log.debug(payload);
 
     var self = this;
     this.mergeatron.db.findEvent({ ref: payload.ref, head: payload.head, after: payload.after }, function(err, res) {
@@ -37,18 +36,34 @@ GitHubPolling.prototype.validateRef = function(payload) {
 
         // exact match for payload found
         if (res) {
+            self.mergeatron.log.debug('Payload already exists: ' + JSON.stringify(payload));
             return;
         }
 
-        self.mergeatron.db.insertEvent(payload);
-        self.mergeatron.emit('events.ref_update', payload);
+        if (!self.config.polling_regex) {
+            self.mergeatron.log.debug('Logged payload without rules: ' + JSON.stringify(payload));
+            self.mergeatron.db.insertEvent(payload);
+            self.mergeatron.emit('events.ref_update', payload);
+            return;
+        }
+
+        for (var index in self.config.polling_regex) {
+            if (payload.ref.match(self.config.polling_regex[index])) {
+                self.mergeatron.db.insertEvent(payload);
+                self.mergeatron.log.debug('Logged payload: ' + JSON.stringify(payload));
+                self.mergeatron.emit('events.ref_update', payload);
+                return;
+            }
+        }
+
+        self.mergeatron.log.debug('payload not being evaluated: ' + JSON.stringify(payload));
     });
 };
 
 GitHubPolling.prototype.checkEvents = function() {
 	var self = this;
 
-	this.mergeatron.log.debug('Polling for github events');
+	this.mergeatron.log.info('Polling for github events');
 
 	this.config.repos.forEach(function(repo) {
 		self.api.events.getFromRepo({ 'user': self.config.user, 'repo': repo }, function(err, repoEvents) {
@@ -58,6 +73,7 @@ GitHubPolling.prototype.checkEvents = function() {
             }
 
             repoEvents.forEach(function(event) {
+                // @todo: support more events?
                 if ([ 'PushEvent', 'CreateEvent' ].indexOf(event.type) === -1) {
                     return;
                 }
@@ -67,7 +83,6 @@ GitHubPolling.prototype.checkEvents = function() {
                     return;
                 }
 
-                self.mergeatron.log.debug('Event found: ' + JSON.stringify(event));
                 self.events.emit('ref_event', event);
             });
         });
@@ -93,8 +108,8 @@ GitHubPolling.prototype.buildPayload = function(event) {
 
     if (event.type === 'PushEvent') {
         payload.ref = payload.ref.split('/').pop();
-        payload.head = event.payload.head;
-        payload.after = event.payload.after;
+        payload.head = event.payload.before;
+        payload.after = event.payload.head;
     }
 
     var self = this;
@@ -105,16 +120,8 @@ GitHubPolling.prototype.buildPayload = function(event) {
         }
 
         payload.master_branch = (!res) ? null : res.master_branch;
-        self.api.users.getEmails(event.actor, function(err, emails) {
-            emails.forEach(function(email) {
-              if (email.primary) {
-                  payload.email = email.email;
-              }
-            });
-            if (payload.email === null) {
-                payload.email = emails.pop().email || emails.pop();
-            }
-
+        self.api.user.getFrom({ id: event.actor.id, user: event.actor.login }, function(err, user) {
+            payload.email = user.email;
             self.events.emit('payload_built', payload);
         });
     });
