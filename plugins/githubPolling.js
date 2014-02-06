@@ -42,22 +42,25 @@ GitHubPolling.prototype.validateRef = function(payload) {
 
         if (!self.config.polling_regex) {
             self.mergeatron.log.debug('Logged payload without rules: ' + JSON.stringify(payload));
-            self.mergeatron.db.insertEvent(payload);
-            self.mergeatron.emit('events.ref_update', payload);
+            self.events.emit('payload_validated', payload);
             return;
         }
 
         for (var index in self.config.polling_regex) {
             if (payload.ref.match(self.config.polling_regex[index])) {
-                self.mergeatron.db.insertEvent(payload);
                 self.mergeatron.log.debug('Logged payload: ' + JSON.stringify(payload));
-                self.mergeatron.emit('events.ref_update', payload);
+                self.events.emit('payload_validated', payload);
                 return;
             }
         }
 
-        self.mergeatron.log.debug('payload not being evaluated: ' + JSON.stringify(payload));
+        self.mergeatron.log.debug('payload not validated: ' + JSON.stringify(payload));
     });
+};
+
+GitHubPolling.prototype.logPayload = function(payload) {
+    this.mergeatron.db.insertEvent(payload);
+    this.mergeatron.emit('events.ref_update', payload);
 };
 
 GitHubPolling.prototype.checkEvents = function() {
@@ -152,5 +155,9 @@ exports.init = function(config, mergeatron) {
 
     events.on('payload_built', function(payload) {
         poller.validateRef(payload);
+    });
+
+    events.on('payload_validated', function(payload) {
+        poller.logPayload(payload);
     });
 };
