@@ -394,7 +394,8 @@ exports.init = function(config, mergeatron) {
 	});
 
     mergeatron.on('events.ref_update', function(payload) {
-        jenkins.triggerBuild(jenkins.findProjectByRepo(payload.repo, 'polling_projects'), payload, function(err) {
+        var project = jenkins.findProjectByRepo(payload.repo, 'polling_projects');
+        jenkins.triggerBuild(project.name, payload, function(err) {
             if (err) {
                 mergeatron.log.error(err);
             }
