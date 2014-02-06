@@ -99,7 +99,7 @@ GitHubPolling.prototype.buildPayload = function(event) {
 
     var payload = {
         id: event.id,
-        repo: event.repo.name,
+        repo: event.repo.name.split('/').pop(),
         actor_id: event.actor.id,
         ref: event.payload.ref,
         master_branch: null,
