@@ -37,6 +37,7 @@ Jenkins.prototype.findUnfinishedJob = function(pull) {
 
 /**
  * Searches through the configs to find the appropriate project for the provided repo.
+ * If set, returns the default project when no project is set for the provided repo.
  *
  * @method findProjectByRepo
  * @param repo {String}
@@ -50,7 +51,15 @@ Jenkins.prototype.findProjectByRepo = function(repo) {
 		}
 	});
 
-	return found;
+	if (found) {
+		return found;
+	}
+
+	if (typeof this.config.default_project !== "undefined") {
+		return this.config.default_project;
+	}
+
+	return null;
 };
 
 /**

@@ -60,6 +60,10 @@ exports.config = {
 				token: 'special_token_just_for_this_job',
 				rules: [ /.php/g ]
 			}],
+			default_project: {
+				name: 'default_project_name',
+				token: 'token'
+			},
 			frequency: 2000
 		},
 		phpcs: {
